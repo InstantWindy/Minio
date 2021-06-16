@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <link rel="stylesheet" href="/lib/theme-chalk/index.css">
+    <title>文件上传界面</title>
+</head>
+<body>
+<h3>请选择你要上传的bucket:</h3>
+<div id="app">
+    <el-select  v-model="bucketName" clearable placeholder="请选择" @change="selectPlatform">
+        <el-option
+                v-for="item in options"
+                :key = "item.id"
+                :label="item.name"
+                :value="item.id"
+        >
+        </el-option>
+    </el-select>
+
+    <el-divider></el-divider>
+    <el-form ref="multi-upload-form" :model="multiUpload" label-width="80px"
+             class="form-container">
+        <el-form-item label="批量导入">
+            <el-upload
+                    action="#"
+                    :show-file-list="true"
+                    :on-remove="removeFile"
+                    :multiple="true"
+                    :file-list="fileList"
+                    :on-change="handleChange"
+                    :auto-upload="false"
+                    :limit="200"
+                    :on-exceed="handleExceed"
+            >
+                <el-button slot="trigger" size="small" type="primary">选取文件</el-button>
+<!--                <el-button style="margin-left: 10px;" size="small" type="success"-->
+<!--                           @click="uploadFile">上传到服务器</el-button>-->
+
+                <div slot="tip" class="el-upload__tip">文件不宜超过200条</div>
+            </el-upload>
+            <el-button slot="trigger" style="margin-left: 10px;" size="small" type="success"
+                       @click="uploadFile">上传到服务器</el-button>
+
+        </el-form-item>
+    </el-form>
+
+</div>
+
+
+<script src="/vue/vue.global.js"></script>
+<script src="/lib/index.full.js"></script>
+<script src="/dist/axios.min.js"></script>
+<script type="text/javascript" src="/js/base64.min.js"></script>
+<script src="http://libs.baidu.com/jquery/2.1.4/jquery.min.js"></script>
+<script>
+    const Main = {
+        data() {
+            return {
+                fileList: [],
+                options: [],
+                bucketName: '',
+            };
+        },
+        mounted(){
+            axios.get("/minio/getbuckets").then((response) => {
+                this.options = response.data
+            })
+        },
+        methods: {
+            selectPlatform(val) {
+                this.$forceUpdate()//强制更新
+                let obj = {}
+                obj = this.options.find(item => {
+                    return item.id === val
+                })
+                this.bucketName = obj.name
+            },
+
+            //监控上传文件列表
+            handleChange(file,fileList) {
+                let existFile = fileList.slice(0, fileList.length - 1).find(
+                    f => f.name === file.name);
+                if (existFile) {
+                    this.$message.error('当前文件已经存在!');
+                    fileList.pop();
+                }
+                this.fileList = fileList;
+                console.log(1,"handleChange")
+                // this.fileList.push(fileList)
+            },
+            // 移除文件
+            removeFile(file) {
+                // 移除文件时，要重新给fileList赋值
+                const arr = []
+                for (let i = 0; i < this.fileList.length; i++) {
+                    if (this.fileList[i].uid !== file.uid) {
+                        arr.push(this.fileList[i])
+                    }
+                }
+                this.fileList = arr
+            },
+            // 手动文件上传
+            uploadFile() {
+
+                if (this.fileList.length === 0) {
+                    this.$message.warning('请选取文件')
+                    return
+                }
+                const  formData = new FormData()
+                formData.append("bucketName",this.bucketName);
+                // 因为要传一个文件数组过去，所以要循环append
+                this.fileList.forEach((file) => {
+                    formData.append('files', file.raw)
+                })
+                // formData格式数据传递
+                axios.post("/minio/uploadFileLists",formData).then(res=>{
+                    if(res.data.indexOf("失败")!=-1){
+                        this.$message.error("上传失败")
+                    }else{
+                        this.$message.success("上传成功")
+                    }
+                    this.fileList = []
+                })
+            },
+            // 上传文件超出个数
+            handleExceed(files, fileList) {
+                this.$message.warning('文件个数超出限制')
+            }
+        },
+
+    };
+
+    const app = Vue.createApp(Main);
+    app.use(ElementPlus); //Vue.use(组件名)注册插件
+    app.mount("#app") //挂载视图
+
+</script>
+</body>
+</html>

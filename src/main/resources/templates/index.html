@@ -1,0 +1,188 @@
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+
+<!--    引入样式-->
+    <link rel="stylesheet" href="/lib/theme-chalk/index.css">
+<!--    <link rel="stylesheet" href="https://unpkg.com/element-ui@2.15.1/lib/theme-chalk/index.css">-->
+<!--    <link rel="stylesheet" href="https://unpkg.com/element-plus/lib/theme-chalk/index.css">-->
+    <title>demo</title>
+</head>
+<body>
+
+<h3>请选择你要查看的bucket:</h3>
+<div id="app">
+        <el-select  v-model="bucketName" clearable placeholder="请选择" @change="selectPlatform">
+            <el-option
+                    v-for="item in options"
+                    :key = "item.id"
+                    :label="item.name"
+                    :value="item.id"
+                   >
+            </el-option>
+        </el-select>
+    <el-divider></el-divider>
+
+    <h3>{{ bucketName }}桶内的文件列表</h3>
+<!--    :data = tableData.slice((currentPage-1)*pageSize,currentPage*pageSize).filter(data=>!search || data.scope.row.name.toLowerCase().includes(search.toLowerCase()))" border stripe fit empty-text="暂无数据"-->
+    <el-table
+            :data = "tableData"
+            style="width: 100%">
+        <el-table-column
+                label="文件名"
+                width="650">
+            <template #default="scope">
+                <span style="margin-left: 10px">{{ scope.row.name }}</span>
+            </template>
+        </el-table-column>
+        <el-table-column
+                label="文件大小"
+                width="180">
+            <template #default="scope">
+                <span style="margin-left: 10px">{{ scope.row.size }}</span>
+            </template>
+        </el-table-column>
+        <el-table-column
+                label="创建时间"
+                width="320">
+            <template #default="scope">
+                <span style="margin-left: 10px">{{ scope.row.createTime }}</span>
+            </template>
+        </el-table-column>
+        <el-table-column label="操作">
+            <template #default="scope">
+                <el-button
+                        size="mini"
+                        @click="handlePreview(scope.$index, scope.row.name)">预览</el-button>
+                <el-button
+                        size="mini"
+                        @click="handleDownload(scope.$index, scope.row.name)">下载</el-button>
+
+                <el-button
+                    size="mini"
+                    type="danger"
+                    @click="handleDelete(scope.$index, scope.row.name)">删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <div class="block" style="float:right">
+        <span class="demonstration"></span>
+        <el-pagination @size-change="handleSizeChange"
+                       @current-change="handleCurrentChange"
+                       :current-page="currentPage"
+                       :page-sizes="pageSizes"
+                       :page-size="pageSize"
+                       background
+                       layout="total, sizes, prev, pager, next, jumper"
+                       :total="total"
+                       style="padding-bottom:15px;padding-top:35px;padding-left:500px;"
+        >
+        </el-pagination>
+
+    </div>
+</div>
+
+
+<!--引入组件库-->
+<script src="/vue/vue.global.js"></script>
+<script src="/lib/index.full.js"></script>
+<script src="/dist/axios.min.js"></script>
+<!--使用js自带的base64解码也是可以预览的-->
+<script src="/js/base64.js"></script>
+<!--<script type="text/javascript" src="/js/base64.min.js"></script>-->
+<!--<script src="https://unpkg.com/vue@next"></script>-->
+<!--<script src="https://unpkg.com/element-plus/lib/index.full.js"></script>-->
+<!--<script src="https://unpkg.com/axios/dist/axios.min.js"></script>-->
+<script>
+    const Main = {
+        data() {
+            return {
+                tableData: [],
+                options:[],
+                bucketName:'',
+                pageSize: 10,
+                pageSizes: [5, 10, 15, 20, 30, 40, 50], // select选项设置：条/页
+                currentPage: 1,
+                total: 0,
+
+            };
+        },
+        mounted(){
+            axios.get("/minio/getbuckets").then((response) => {
+                this.options = response.data
+            })
+        },
+
+        methods: { //点击事件的响应函数
+            selectPlatform(val) {
+                this.$forceUpdate()//强制更新
+                let obj = {}
+                obj = this.options.find(item => {
+                    return item.id === val
+                })
+                this.bucketName = obj.name
+                this.getFileList(this.currentPage)
+                // axios.get("/minio/getFiles?bucketName="+obj.name).then((response) => {
+                //     this.tableData = response.data;
+                //     this.total = response.data.length;
+                // })
+            },
+            handlePreview(index, name) {
+                axios.get("/minio/url?name=" + name + "&bucket=" + this.bucketName).then((res) => {
+                    console.log("url",Base64.encode(res.data));
+                    //url需要加上Base64.encode的编码
+                    window.open('http://127.0.0.1:8012/onlinePreview?url=' +
+                        // encodeURIComponent(res.data));
+                        encodeURIComponent(Base64.encode(res.data)));
+                })
+            },
+            handleDownload(index, name) {
+                axios.get("/minio/downloadandsave?objectName=" + name + "&filePath=C:/Files")
+                console.log(index, name);
+            },
+            handleDelete(index, name) {
+                //传递多个参数：/minio/delete?filename="+name+"&bucketName="+bucketName
+                axios.get("/minio/delete?fileName=" + name)
+                this.tableData.splice(index, 1);
+                console.log(index, name);
+            },
+            handleSizeChange(val) {
+                this.pageSize = val;
+                this.getFileList(this.currentPage)
+            },
+            handleCurrentChange(val) {
+                this.currentPage = val;
+                this.getFileList(this.currentPage)
+
+            },
+            getFileList(page) {
+                if (page == 0) { //page等于0，表示已是第一页，提示用户已到第一页
+                    alert("已到第一页！")
+                    return;
+                }
+                var self = this;
+                axios.get("/minio/getPageFiles?currentPage="+page+"&pageSize="+10+
+                    "&bucketName="+this.bucketName).then((response) =>{//请求成功
+                    console.log(1,response.data.totalNum);
+                    if (response.data.totalNum == 0) {
+                        //请求数据长度为0，表示没有数据，提示用户到最后一页
+                        alert("已到最后一页！")
+                        return;
+                    }
+                    self.page = page;//无其他情况，表示请求成功，更新记录页面的page参数
+                    self.tableData = response.data.items;
+                    self.total = response.data.totalNum;
+                })
+            },
+        },
+
+    };
+    const app = Vue.createApp(Main);
+    app.use(ElementPlus); //Vue.use(组件名)注册插件
+    app.mount("#app") //挂载视图
+
+</script>
+</body>
+</html>

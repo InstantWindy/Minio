@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>文件上传界面</title>
+</head>
+<body>
+<h3>文件上传</h3>
+<form action="/minio/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="file"/><br/><br/>
+    <input type="submit" value="提交">
+</form>
+<hr/>
+<h3>多文件上传</h3>
+<form action="/minio/uploadFiles" method="post" enctype="multipart/form-data">
+    <input type="file" name="file"/><br/><br/>
+    <input type="file" name="file"/><br/><br/>
+    <input type="file" name="file"/><br/><br/>
+    <input type="submit" value="提交">
+</form>
+<hr/>
+</body>
+</html>

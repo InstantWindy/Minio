@@ -1,0 +1,89 @@
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/lib/theme-chalk/index.css">
+    <title>demo</title>
+</head>
+<body>
+<div id="app">
+    <el-table
+            :data="tableData"
+            style="width: 100%">
+        <el-table-column
+                label="文件名"
+                width="650">
+            <template #default="scope">
+                <span style="margin-left: 10px">{{ scope.row.name }}</span>
+            </template>
+        </el-table-column>
+        <el-table-column
+                label="文件大小"
+                width="180">
+            <template #default="scope">
+                <span style="margin-left: 10px">{{ scope.row.size }}</span>
+            </template>
+        </el-table-column>
+        <el-table-column
+                label="创建时间"
+                width="320">
+            <template #default="scope">
+                <span style="margin-left: 10px">{{ scope.row.createTime }}</span>
+            </template>
+        </el-table-column>
+        <el-table-column label="操作">
+            <template #default="scope">
+                <el-button
+                        size="mini"
+                        @click="handlePreview(scope.$index, scope.row.name)">预览</el-button>
+                <el-button
+                        size="mini"
+                        @click="handleDownload(scope.$index, scope.row.name)">下载</el-button>
+
+                <el-button
+                    size="mini"
+                    type="danger"
+                    @click="handleDelete(scope.$index, scope.row.name)">删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+</div>
+<script src="https://unpkg.com/vue@next"></script>
+<script src="https://unpkg.com/element-plus/lib/index.full.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    const Main = {
+        data() {
+            return {
+                tableData: []
+            };
+        },
+        mounted(){
+            axios.get("/minio/getFiles?bucketName=mybucket").then((response) => {
+                this.tableData = response.data;
+            })
+        },
+        methods: {
+            handlePreview(index, name) {
+                // 网页控制台输出，点击网页检查，然后console
+                console.log(index, name);
+            },
+            handleDownload(index, name) {
+                axios.get("/minio/downloadandsave?objectName="+name+"&filePath=C:/Files")
+                console.log(index, name);
+            },
+            handleDelete(index, name) {
+                //传递多个参数：/minio/delete?filename="+name+"&bucketName="+bucketName
+                axios.get("/minio/delete?fileName="+name)
+                this.tableData.splice(index,1);
+                console.log(index, name);
+            }
+        },
+    };
+    const app = Vue.createApp(Main);
+    app.use(ElementPlus);
+    app.mount("#app")
+
+</script>
+</body>
+</html>
